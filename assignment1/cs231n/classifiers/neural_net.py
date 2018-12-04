@@ -96,7 +96,6 @@ class TwoLayerNet(object):
         #############################################################################
         scores -= np.max(scores, axis=1).reshape(N, 1)  # N X 1
         correct_class_scores = scores[np.arange(N), y]
-        # ignore divide by zero Warning
         loss = np.sum(-np.log(np.exp(correct_class_scores) /
                               np.sum(np.exp(scores), axis=1)))
         loss = loss / N + reg * (np.sum(W1 * W1) + np.sum(W2 * W2))
@@ -112,7 +111,7 @@ class TwoLayerNet(object):
         # grads['W1'] should store the gradient on W1, and be a matrix of same size #
         #############################################################################
         dscores = np.exp(scores) / np.sum(np.exp(scores),
-                                          axis=1).reshape(-1, 1)
+                                          axis=1, keepdims=True)
         dscores[np.arange(N), y] += -1
         dscores /= N
         grads['W2'] = h1_output.T @ dscores + 2.0 * reg * W2
