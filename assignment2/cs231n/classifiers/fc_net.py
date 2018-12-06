@@ -83,7 +83,6 @@ class TwoLayerNet(object):
         ############################################################################
         W1, b1 = self.params['W1'], self.params['b1']
         W2, b2 = self.params['W2'], self.params['b2']
-        N, D = X.shape
 
         h1_out, h1_cache = affine_relu_forward(X, W1, b1)
         scores, scores_cache = affine_forward(h1_out, W2, b2)
@@ -182,7 +181,17 @@ class FullyConnectedNet(object):
         # beta2, etc. Scale parameters should be initialized to ones and shift     #
         # parameters should be initialized to zeros.                               #
         ############################################################################
-        pass
+        prev_dim = input_dim
+        for i, hidden_dim in enumerate(hidden_dims):
+            idx_str = str(i + 1)
+            self.params['W' + idx_str] = weight_scale * \
+                np.random.randn(prev_dim, hidden_dim)
+            self.params['b' + idx_str] = np.zeros(hidden_dim)
+
+            self.params['gamma' + idx_str] = np.ones(hidden_dim)
+            self.params['beta' + idx_str] = np.zeros(hidden_dim)
+
+            prev_dim = hidden_dim
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -241,7 +250,25 @@ class FullyConnectedNet(object):
         # self.bn_params[1] to the forward pass for the second batch normalization #
         # layer, etc.                                                              #
         ############################################################################
-        pass
+        prev_scores = X
+        for i in range(self.num_layers - 1):
+            idx_str = str(i + 1)
+            W = self.params['W' + idx_str]
+            b = self.params['b' + idx_str]
+            gamma = self.params['gamma' + idx_str]
+            beta = self.params['beta' + idx_str]
+
+            scores, _ = affine_forward(prev_scores, W, b)
+            if self.normalization == 'batchnorm':
+                scores, _ = batchnorm_forward(
+                    scores, gamma, beta, self.bn_params[i])
+            scores, _ = relu_forward(scores)
+
+            if self.use_dropout:
+                scores, _ = dropout_forward(scores, self.dropout_param)
+
+            prev_scores = scores
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
