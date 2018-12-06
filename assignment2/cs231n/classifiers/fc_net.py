@@ -188,10 +188,16 @@ class FullyConnectedNet(object):
                 np.random.randn(prev_dim, hidden_dim)
             self.params['b' + idx_str] = np.zeros(hidden_dim)
 
-            self.params['gamma' + idx_str] = np.ones(hidden_dim)
-            self.params['beta' + idx_str] = np.zeros(hidden_dim)
+            if self.normalization:
+                self.params['gamma' + idx_str] = np.ones(hidden_dim)
+                self.params['beta' + idx_str] = np.zeros(hidden_dim)
 
             prev_dim = hidden_dim
+
+        # weight for the last fully-connect layer (output layer)
+        self.params['W' + str(self.num_layers)] = weight_scale * \
+            np.random.randn(prev_dim, num_classes)
+        self.params['b' + str(self.num_layers)] = np.zeros(num_classes)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -251,23 +257,33 @@ class FullyConnectedNet(object):
         # layer, etc.                                                              #
         ############################################################################
         prev_scores = X
+        cache = {}
         for i in range(self.num_layers - 1):
             idx_str = str(i + 1)
             W = self.params['W' + idx_str]
             b = self.params['b' + idx_str]
-            gamma = self.params['gamma' + idx_str]
-            beta = self.params['beta' + idx_str]
 
-            scores, _ = affine_forward(prev_scores, W, b)
             if self.normalization == 'batchnorm':
-                scores, _ = batchnorm_forward(
+                gamma = self.params['gamma' + idx_str]
+                beta = self.params['beta' + idx_str]
+
+            scores, cache['fc' +
+                          idx_str] = affine_forward(prev_scores, W, b)
+
+            if self.normalization == 'batchnorm':
+                scores, cache['bn' + idx_str] = batchnorm_forward(
                     scores, gamma, beta, self.bn_params[i])
-            scores, _ = relu_forward(scores)
+
+            scores, cache['relu' + idx_str] = relu_forward(scores)
 
             if self.use_dropout:
-                scores, _ = dropout_forward(scores, self.dropout_param)
+                scores, cache['dropout' +
+                              idx_str] = dropout_forward(scores, self.dropout_param)
 
             prev_scores = scores
+
+        scores, cache['fc' + str(self.num_layers)] = affine_forward(
+            scores, self.params['W' + str(self.num_layers)], self.params['b' + str(self.num_layers)])
 
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -291,7 +307,37 @@ class FullyConnectedNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
-        pass
+        loss, dscores = softmax_loss(scores, y)
+        loss += 0.5 * self.reg * \
+            np.sum(self.params['W' + str(self.num_layers)]**2)
+
+        # backward
+        dhidden, dW, db = affine_backward(
+            dscores, cache['fc' + str(self.num_layers)])
+
+        grads['W' + str(self.num_layers)] = dW + self.reg * \
+            self.params['W' + str(self.num_layers)]
+        grads['b' + str(self.num_layers)] = db
+
+        for i in reversed(range(self.num_layers - 1)):
+            idx_str = str(i + 1)
+            loss += 0.5 * self.reg * np.sum(self.params['W' + idx_str]**2)
+
+            if self.use_dropout:
+                dhidden = dropout_backward(dhidden, cache['dropout' + idx_str])
+
+            dhidden = relu_backward(dhidden, cache['relu' + idx_str])
+
+            if self.normalization == 'batchnorm':
+                dhidden, dgamma, dbeta = batchnorm_backward(
+                    dhidden, cache['bn' + idx_str])
+                grads['gamma' + idx_str] = dgamma
+                grads['beta' + idx_str] = dbeta
+
+            dhidden, dW, db = affine_backward(dhidden, cache['fc' + idx_str])
+
+            grads['W' + idx_str] = dW + self.reg * self.params['W' + idx_str]
+            grads['b' + idx_str] = db
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
