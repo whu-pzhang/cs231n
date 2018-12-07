@@ -194,7 +194,7 @@ class FullyConnectedNet(object):
 
             prev_dim = hidden_dim
 
-        # weight for the last fully-connect layer (output layer)
+        # weight for the last fully-connected layer (output layer)
         self.params['W' + str(self.num_layers)] = weight_scale * \
             np.random.randn(prev_dim, num_classes)
         self.params['b' + str(self.num_layers)] = np.zeros(num_classes)
