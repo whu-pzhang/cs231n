@@ -180,16 +180,14 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # Referencing the original paper (https://arxiv.org/abs/1502.03167)   #
         # might prove to be helpful.                                          #
         #######################################################################
-        mu = np.mean(x, axis=0, keepdims=True)
-        var = np.var(x, axis=0, keepdims=True)
-        x_norm = (x - mu) / np.sqrt(var + eps)
+        x_mean = np.mean(x, axis=0, keepdims=True)
+        x_var = np.var(x, axis=0, keepdims=True)
+        x_norm = (x - x_mean) / np.sqrt(x_var + eps)
         out = gamma * x_norm + beta
-        cache = (x, gamma, beta)
+        cache = (x_mean, x_var, x_norm, gamma, beta, eps)
 
-        bn_param['running_mean'] = momentum * \
-            running_mean + (1. - momentum) * mu
-        bn_param['running_var'] = momentum * \
-            running_var + (1. - momentum) * var
+        running_mean = momentum * running_mean + (1. - momentum) * x_mean
+        running_var = momentum * running_var + (1. - momentum) * x_var
         #######################################################################
         #                           END OF YOUR CODE                          #
         #######################################################################
@@ -200,7 +198,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # then scale and shift the normalized data using gamma and beta.      #
         # Store the result in the out variable.                               #
         #######################################################################
-        pass
+        x_norm = (x - running_mean) / (running_var + eps)
+        out = gamma * x_norm + beta
         #######################################################################
         #                          END OF YOUR CODE                           #
         #######################################################################
@@ -238,7 +237,20 @@ def batchnorm_backward(dout, cache):
     # Referencing the original paper (https://arxiv.org/abs/1502.03167)       #
     # might prove to be helpful.                                              #
     ###########################################################################
-    pass
+    x_mean, x_var, x_norm, gamma, beta, eps = cache
+    N, D = x_norm.shape
+    dx_norm = dout * gamma  # (N, D)
+    x_var_inv = 1.0 / np.sqrt(x_var + eps)
+    x_mu = x_norm / x_var_inv
+    dx_var = np.sum(dx_norm * x_mu, axis=0,
+                    keepdims=True) * (-0.5) * x_var_inv**3
+    dx_mean = np.sum(dx_norm * (-x_var_inv), axis=0, keepdims=True) - \
+        2.0 * dx_var * np.mean(x_mu, axis=0, keepdims=True)
+
+    dx = dx_norm * x_var_inv + 2.0 / N * dx_var * x_mu + dx_mean / N  # (N, D)
+    dgamma = np.sum(dout * x_norm, axis=0, keepdims=True)  # (1, D)
+    dbeta = np.sum(dout, axis=0, keepdims=True)  # (1, D)
+
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
