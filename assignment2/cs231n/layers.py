@@ -184,7 +184,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         x_var = np.var(x, axis=0, keepdims=True)
         x_norm = (x - x_mean) / np.sqrt(x_var + eps)
         out = gamma * x_norm + beta
-        cache = (x_mean, x_var, x_norm, gamma, beta, eps)
+        cache = (x, x_mean, x_var, x_norm, gamma, beta, eps)
 
         running_mean = momentum * running_mean + (1. - momentum) * x_mean
         running_var = momentum * running_var + (1. - momentum) * x_var
@@ -237,7 +237,7 @@ def batchnorm_backward(dout, cache):
     # Referencing the original paper (https://arxiv.org/abs/1502.03167)       #
     # might prove to be helpful.                                              #
     ###########################################################################
-    x_mean, x_var, x_norm, gamma, beta, eps = cache
+    x, x_mean, x_var, x_norm, gamma, beta, eps = cache
     N, D = x_norm.shape
     dx_norm = dout * gamma  # (N, D)
     x_var_inv = 1.0 / np.sqrt(x_var + eps)
@@ -281,7 +281,13 @@ def batchnorm_backward_alt(dout, cache):
     # should be able to compute gradients with respect to the inputs in a     #
     # single statement; our implementation fits on a single 80-character line.#
     ###########################################################################
-    pass
+    x, x_mean, x_var, x_norm, gamma, beta, eps = cache
+    N, D = x_mean.shape
+    x_var_inv = (x_var + eps)**(-1. / 2.)
+    dbeta = np.sum(dout, axis=0, keepdims=True)
+    dgamma = np.sum((x - x_mean) * x_var_inv * dout, axis=0, keepdims=True)
+    dx = (1. / N) * gamma * x_var_inv * (N * dout - np.sum(dout, axis=0, keepdims=True) -
+                                         (x - x_mean) * x_var_inv**2 * np.sum(dout * (x - x_mean), axis=0, keepdims=True))
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
