@@ -188,7 +188,7 @@ class FullyConnectedNet(object):
                 np.random.randn(prev_dim, hidden_dim)
             self.params['b' + idx_str] = np.zeros(hidden_dim)
 
-            if self.normalization:
+            if self.normalization == 'batchnorm':
                 self.params['gamma' + idx_str] = np.ones(hidden_dim)
                 self.params['beta' + idx_str] = np.zeros(hidden_dim)
 
