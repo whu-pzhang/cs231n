@@ -329,7 +329,18 @@ def layernorm_forward(x, gamma, beta, ln_param):
     # transformations you could perform, that would enable you to copy over   #
     # the batch norm code and leave it almost unchanged?                      #
     ###########################################################################
-    pass
+    N, D = x.shape
+    mu = 1. / D * np.sum(x, axis=1, keepdims=True)              # (1)
+    xsubmu = x - mu                                             # (2)
+    xsubmusqr = xsubmu ** 2                                     # (3)
+    var = 1. / D * np.sum(xsubmusqr, axis=1, keepdims=True)     # (4)
+    varsqrt = np.sqrt(var + eps)                                # (5)
+    invvarsqrt = 1. / varsqrt                                   # (6)
+    x_norm = xsubmu * invvarsqrt                                # (7)
+    gammax = gamma * x_norm                                     # (8)
+    out = gammax + beta                                         # (9)
+    cache = (mu, xsubmu, var, varsqrt,
+             invvarsqrt, x_norm, gamma, beta, eps)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -360,7 +371,22 @@ def layernorm_backward(dout, cache):
     # implementation of batch normalization. The hints to the forward pass    #
     # still apply!                                                            #
     ###########################################################################
-    pass
+    mu, xsubmu, var, varsqrt, invvarsqrt, x_norm, gamma, beta, eps = cache
+
+    N, D = x_norm.shape
+    dgammax = dout                                                  # (9)
+    dbeta = np.sum(dout, axis=0, keepdims=True)                     # (9)
+    dgamma = np.sum(dgammax * x_norm, axis=0, keepdims=True)        # (8)
+    dx_norm = dgammax * gamma                                       # (8)
+    dinvvarsqrt = np.sum(dx_norm * xsubmu, axis=1, keepdims=True)   # (7)
+    dxsubmu = dx_norm * invvarsqrt                                  # (7)
+    dvarsqrt = -dinvvarsqrt * varsqrt**(-2)                         # (6)
+    dvar = dvarsqrt * 0.5 * (var + eps) ** (-0.5)                   # (5)
+    dxsubmusqr = dvar * 1. / D * np.ones((N, D))                    # (4)
+    dxsubmu += dxsubmusqr * 2.0 * xsubmu                            # (3)
+    dx = dxsubmu                                                    # (2)
+    dmu = -np.sum(dxsubmu, axis=1, keepdims=True)                   # (2)
+    dx += dmu * 1. / D * np.ones((N, D))                            # (1)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
