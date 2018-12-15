@@ -180,14 +180,26 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # Referencing the original paper (https://arxiv.org/abs/1502.03167)   #
         # might prove to be helpful.                                          #
         #######################################################################
-        x_mean = np.mean(x, axis=0, keepdims=True)
-        x_var = np.var(x, axis=0, keepdims=True)
-        x_norm = (x - x_mean) / np.sqrt(x_var + eps)
-        out = gamma * x_norm + beta
-        cache = (x, x_mean, x_var, x_norm, gamma, beta, eps)
+        # x_mean = np.mean(x, axis=0, keepdims=True)
+        # x_var = np.var(x, axis=0, keepdims=True)
+        # x_norm = (x - x_mean) / np.sqrt(x_var + eps)
+        # out = gamma * x_norm + beta
+        # cache = (x, x_mean, x_var, x_norm, gamma, beta, eps)
 
-        running_mean = momentum * running_mean + (1. - momentum) * x_mean
-        running_var = momentum * running_var + (1. - momentum) * x_var
+        mu = 1.0 / N * np.sum(x, axis=0, keepdims=True)               # (1)
+        xsubmu = x - mu                                               # (2)
+        xsubmusqr = xsubmu**2                                         # (3)
+        var = 1.0 / N * np.sum(xsubmusqr, axis=0, keepdims=True)      # (4)
+        sqrtvar = np.sqrt(var + eps)                                  # (5)
+        invsqrtvar = 1.0 / sqrtvar                                    # (6)
+        x_norm = xsubmu * invsqrtvar                                  # (7)
+        gammax = gamma * x_norm                                       # (8)
+        out = gammax + beta                                           # (9)
+
+        cache = (xsubmu, var, sqrtvar, invsqrtvar, x_norm, gamma, eps)
+
+        running_mean = momentum * running_mean + (1. - momentum) * mu
+        running_var = momentum * running_var + (1. - momentum) * var
         #######################################################################
         #                           END OF YOUR CODE                          #
         #######################################################################
@@ -237,17 +249,35 @@ def batchnorm_backward(dout, cache):
     # Referencing the original paper (https://arxiv.org/abs/1502.03167)       #
     # might prove to be helpful.                                              #
     ###########################################################################
-    x, x_mean, x_var, x_norm, gamma, beta, eps = cache
-    N, D = x_norm.shape
-    dx_norm = dout * gamma  # (N, D)
-    x_var_inv = 1.0 / np.sqrt(x_var + eps)
-    x_mu = x_norm / x_var_inv
-    dx_var = np.sum(dx_norm * x_mu, axis=0,
-                    keepdims=True) * (-0.5) * x_var_inv**3
-    dx_mean = np.sum(dx_norm * (-x_var_inv), axis=0, keepdims=True) - \
-        2.0 * dx_var * np.mean(x_mu, axis=0, keepdims=True)
+    # x, x_mean, x_var, x_norm, gamma, beta, eps = cache
+    # N, D = x_norm.shape
+    # dx_norm = dout * gamma  # (N, D)
+    # x_var_inv = 1.0 / np.sqrt(x_var + eps)
+    # x_mu = x_norm / x_var_inv
+    # dx_var = np.sum(dx_norm * x_mu, axis=0,
+    #                 keepdims=True) * (-0.5) * x_var_inv**3
+    # dx_mean = np.sum(dx_norm * (-x_var_inv), axis=0, keepdims=True) - \
+    #     2.0 * dx_var * np.mean(x_mu, axis=0, keepdims=True)
+    #
+    # dx = dx_norm * x_var_inv + 2.0 / N * dx_var * x_mu + dx_mean / N  # (N, D)
 
-    dx = dx_norm * x_var_inv + 2.0 / N * dx_var * x_mu + dx_mean / N  # (N, D)
+    xsubmu, var, sqrtvar, invsqrtvar, x_norm, gamma, eps = cache
+    N, D = x_norm.shape
+
+    dgammax = dout                                                 # (9)
+    dbeta = np.sum(dout, axis=0, keepdims=True)                    # (9)
+    dgamma = np.sum(dgammax * x_norm, axis=0, keepdims=True)       # (8)
+    dx_norm = dgammax * gamma                                      # (8)
+    dxsubmu = dx_norm * invsqrtvar                                 # (7)
+    dinvsqrtvar = np.sum(dx_norm * xsubmu, axis=0, keepdims=True)  # (7)
+    dsqrtvar = dinvsqrtvar * (-1.0) * (sqrtvar)**(-2)              # (6)
+    dvar = dsqrtvar * (0.5 * (var + eps)**(-0.5))                  # (5)
+    dxsubmusqr = dvar * (1.0 / N * np.ones((N, D)))                # (4)
+    dxsubmu += dxsubmusqr * (2 * xsubmu)                           # (3)
+    dx = dxsubmu                                                   # (2)
+    dmu = -1.0 * np.sum(dxsubmu, axis=0, keepdims=True)            # (2)
+    dx += dmu * (1.0 / N * np.ones((N, D)))                        # (1)
+
     dgamma = np.sum(dout * x_norm, axis=0, keepdims=True)  # (1, D)
     dbeta = np.sum(dout, axis=0, keepdims=True)  # (1, D)
 
