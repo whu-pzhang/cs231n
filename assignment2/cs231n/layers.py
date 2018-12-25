@@ -793,20 +793,20 @@ def spatial_groupnorm_forward(x, gamma, beta, G, gn_param):
     cache = []
 
     group_size = C // G
-    # x_reshaped = np.transpose(x, axes=[0, 2, 3, 1]).reshape(-1, C)
+    x_reshaped = np.transpose(x, axes=[0, 2, 3, 1]).reshape(-1, C)
+    gamma_reshaped = np.transpose(gamma, axes=[0, 2, 3, 1]).reshape(C,)
+    beta_reshaped = np.transpose(beta, axes=[0, 2, 3, 1]).reshape(C,)
     for i in range(G):
-        begin = i * group_size
-        end = (i + 1) * group_size
-        if end >= C:
-            end = -1
+        index = np.arange(i * group_size, (i + 1) * group_size)
 
-        group_x = x[:, begin:end, :, :]
-        group_gamma = gamma[begin:end]
-        group_beta = beta[begin:end]
-        group_out, group_cache = spatial_batchnorm_forward(
+        group_x = x_reshaped[:, index]
+        group_gamma = gamma_reshaped[index]
+        group_beta = beta_reshaped[index]
+        group_out, group_cache = layernorm_forward(
             group_x, group_gamma, group_beta, gn_param)
 
-        out[:, begin:end, :, :] = group_out
+        out[:, index, :, :] = np.transpose(
+            group_out.reshape(N, H, W, group_size), axes=[0, 3, 1, 2])
         cache.append(group_cache)
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -833,7 +833,24 @@ def spatial_groupnorm_backward(dout, cache):
     # TODO: Implement the backward pass for spatial group normalization.      #
     # This will be extremely similar to the layer norm implementation.        #
     ###########################################################################
-    pass
+    N, C, H, W = dout.shape
+    dx = np.zeros_like(dout)
+    dgamma = np.zeros((1, C, 1, 1), dtype=dout.dtype)
+    dbeta = np.zeros((1, C, 1, 1), dtype=dout.dtype)
+    G = len(cache)
+    group_size = C // G
+    dout_reshaped = np.transpose(dout, axes=[0, 2, 3, 1]).reshape(-1, C)
+    for i in range(G):
+        index = np.arange(i * group_size, (i + 1) * group_size)
+        group_dout = dout_reshaped[:, index]
+        group_cache = cache[i]
+        group_dx, group_dgamma, group_dbeta = layernorm_backward(
+            group_dout, group_cache)
+        dx[:, index, :, :] = np.transpose(
+            group_dx.reshape(N, H, W, group_size), axes=[0, 3, 1, 2])
+        dgamma[:, index, :, :] = group_dgamma[:, :, None, None]
+        dbeta[:, index, :, :] = group_dbeta[:, :, None, None]
+
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
