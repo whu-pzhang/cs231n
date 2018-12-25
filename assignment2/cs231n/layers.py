@@ -716,7 +716,10 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     # vanilla version of batch normalization you implemented above.           #
     # Your implementation should be very short; ours is less than five lines. #
     ###########################################################################
-    pass
+    N, C, H, W = x.shape
+    x_reshaped = np.transpose(x, axes=[0, 2, 3, 1]).reshape(-1, C)
+    out, cache = batchnorm_forward(x_reshaped, gamma, beta, bn_param)
+    out = np.transpose(out.reshape((N, H, W, C)), axes=[0, 3, 1, 2])
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -746,7 +749,10 @@ def spatial_batchnorm_backward(dout, cache):
     # vanilla version of batch normalization you implemented above.           #
     # Your implementation should be very short; ours is less than five lines. #
     ###########################################################################
-    pass
+    N, C, H, W = dout.shape
+    dout_reshaped = np.transpose(dout, axes=[0, 2, 3, 1]).reshape(-1, C)
+    dx, dgamma, dbeta = batchnorm_backward(dout_reshaped, cache)
+    dx = np.transpose(dx.reshape((N, H, W, C)), axes=[0, 3, 1, 2])
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -782,7 +788,26 @@ def spatial_groupnorm_forward(x, gamma, beta, G, gn_param):
     # the bulk of the code is similar to both train-time batch normalization  #
     # and layer normalization!                                                #
     ###########################################################################
-    pass
+    N, C, H, W = x.shape
+    out = np.zeros_like(x)
+    cache = []
+
+    group_size = C // G
+    # x_reshaped = np.transpose(x, axes=[0, 2, 3, 1]).reshape(-1, C)
+    for i in range(G):
+        begin = i * group_size
+        end = (i + 1) * group_size
+        if end >= C:
+            end = -1
+
+        group_x = x[:, begin:end, :, :]
+        group_gamma = gamma[begin:end]
+        group_beta = beta[begin:end]
+        group_out, group_cache = spatial_batchnorm_forward(
+            group_x, group_gamma, group_beta, gn_param)
+
+        out[:, begin:end, :, :] = group_out
+        cache.append(group_cache)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
