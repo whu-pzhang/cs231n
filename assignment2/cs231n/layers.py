@@ -543,9 +543,9 @@ def conv_forward_naive(x, w, b, conv_param):
     pad = conv_param['pad']
     N, C, H, W = x.shape
     F, C, HH, WW = w.shape
-    Hout = int((H + 2 * pad - HH) / stride + 1)
-    Wout = int((W + 2 * pad - WW) / stride + 1)
-    out = np.zeros((N, F, Hout, Wout))
+    Hout = int((H + 2 * pad - HH) // stride + 1)
+    Wout = int((W + 2 * pad - WW) // stride + 1)
+    out = np.zeros((N, F, Hout, Wout), dtype=x.dtype)
 
     padx = np.pad(x, ((0, 0), (0, 0), (pad, pad), (pad, pad)), 'constant')
     for i in range(Hout):
@@ -584,10 +584,9 @@ def conv_backward_naive(dout, cache):
     stride, pad = conv_param['stride'], conv_param['pad']
     N, C, H, W = x.shape
     F, C, HH, WW = w.shape
-    Hout = int((H + 2 * pad - HH) / stride + 1)
-    Wout = int((W + 2 * pad - WW) / stride + 1)
+    Hout = (H + 2 * pad - HH) // stride + 1
+    Wout = (W + 2 * pad - WW) // stride + 1
     padx = np.pad(x, ((0, 0), (0, 0), (pad, pad), (pad, pad)), 'constant')
-    dx = np.zeros_like(x)
     dw = np.zeros_like(w)
     dpadx = np.zeros_like(padx)
 

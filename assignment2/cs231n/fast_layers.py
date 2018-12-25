@@ -64,7 +64,7 @@ def conv_forward_strides(x, w, b, conv_param):
     strides = (H * W, W, 1, C * H * W, stride * W, stride)
     strides = x.itemsize * np.array(strides)
     x_stride = np.lib.stride_tricks.as_strided(x_padded,
-                  shape=shape, strides=strides)
+                                               shape=shape, strides=strides)
     x_cols = np.ascontiguousarray(x_stride)
     x_cols.shape = (C * HH * WW, N * out_h * out_w)
 
@@ -265,7 +265,7 @@ def max_pool_backward_im2col(dout, cache):
     dx_cols = np.zeros_like(x_cols)
     dx_cols[x_cols_argmax, np.arange(dx_cols.shape[1])] = dout_reshaped
     dx = col2im_indices(dx_cols, (N * C, 1, H, W), pool_height, pool_width,
-                padding=0, stride=stride)
+                        padding=0, stride=stride)
     dx = dx.reshape(x.shape)
 
     return dx
