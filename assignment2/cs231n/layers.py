@@ -313,10 +313,9 @@ def batchnorm_backward_alt(dout, cache):
     ###########################################################################
     xsubmu, var, sqrtvar, invsqrtvar, x_norm, gamma, eps = cache
     N, D = xsubmu.shape
-    x_var_inv = (var + eps)**(-1. / 2.)
     dbeta = np.sum(dout, axis=0, keepdims=True)
     dgamma = np.sum(x_norm * dout, axis=0, keepdims=True)
-    dx = (1. / N) * gamma * x_var_inv * (-dgamma * x_norm + N * dout - dbeta)
+    dx = (1. / N) * gamma * invsqrtvar * (-dgamma * x_norm + N * dout - dbeta)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
