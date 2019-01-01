@@ -315,7 +315,7 @@ def batchnorm_backward_alt(dout, cache):
     N, D = xsubmu.shape
     dbeta = np.sum(dout, axis=0, keepdims=True)
     dgamma = np.sum(x_norm * dout, axis=0, keepdims=True)
-    dx = (1. / N) * gamma * invsqrtvar * (-dgamma * x_norm + N * dout - dbeta)
+    dx = (1. / N) * gamma * invsqrtvar * (N * dout - dgamma * x_norm - dbeta)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
