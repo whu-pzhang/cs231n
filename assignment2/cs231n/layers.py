@@ -541,8 +541,8 @@ def conv_forward_naive(x, w, b, conv_param):
     pad = conv_param['pad']
     N, C, H, W = x.shape
     F, C, HH, WW = w.shape
-    Hout = int((H + 2 * pad - HH) // stride + 1)
-    Wout = int((W + 2 * pad - WW) // stride + 1)
+    Hout = (H + 2 * pad - HH) // stride + 1
+    Wout = (W + 2 * pad - WW) // stride + 1
     out = np.zeros((N, F, Hout, Wout), dtype=x.dtype)
 
     padx = np.pad(x, ((0, 0), (0, 0), (pad, pad), (pad, pad)), 'constant')
@@ -632,8 +632,8 @@ def max_pool_forward_naive(x, pool_param):
     ###########################################################################
     HH, WW, stride = pool_param['pool_height'], pool_param['pool_width'], pool_param['stride']
     N, C, H, W = x.shape
-    Hout = int((H - HH) / stride + 1)
-    Wout = int((W - WW) / stride + 1)
+    Hout = (H - HH) // stride + 1
+    Wout = (W - WW) // stride + 1
     out = np.zeros((N, C, Hout, Wout))
 
     for i in range(Hout):
@@ -666,8 +666,8 @@ def max_pool_backward_naive(dout, cache):
     x, pool_param = cache
     HH, WW, stride = pool_param['pool_height'], pool_param['pool_width'], pool_param['stride']
     N, C, H, W = x.shape
-    Hout = int((H - HH) / stride + 1)
-    Wout = int((W - WW) / stride + 1)
+    Hout = (H - HH) // stride + 1
+    Wout = (W - WW) // stride + 1
     dx = np.zeros((N, C, H, W))
     for i in range(Hout):
         for j in range(Wout):
