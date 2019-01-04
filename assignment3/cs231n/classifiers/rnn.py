@@ -144,18 +144,23 @@ class CaptioningRNN(object):
         weout, wecache = word_embedding_forward(captions_in, W_embed)
 
         if self.cell_type == 'rnn':
-            rnnout, rnncache = rnn_forward(weout, h0, Wx, Wh, b)
+            hout, hcache = rnn_forward(weout, h0, Wx, Wh, b)
+        elif self.cell_type == 'lstm':
+            hout, hcache = lstm_forward(weout, h0, Wx, Wh, b)
 
-        x, xcache = temporal_affine_forward(rnnout, W_vocab, b_vocab)
+        x, xcache = temporal_affine_forward(hout, W_vocab, b_vocab)
         loss, dx = temporal_softmax_loss(x, captions_out, mask)
 
         # backward
-        drnnout, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(
+        dhout, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(
             dx, xcache)
 
         if self.cell_type == 'rnn':
             dweout, dh, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(
-                drnnout, rnncache)
+                dhout, hcache)
+        elif self.cell_type == 'lstm':
+            dweout, dh, grads['Wx'], grads['Wh'], grads['b'] = lstm_backward(
+                dhout, hcache)
 
         grads['W_embed'] = word_embedding_backward(dweout, wecache)
         dx, grads['W_proj'], grads['b_proj'] = affine_backward(
@@ -227,11 +232,18 @@ class CaptioningRNN(object):
         prev_h, _ = affine_forward(features, W_proj, b_proj)
         captions[:, 0] = self._start
         x = self._start * np.ones((N, ), dtype=np.int32)
+        if self.cell_type == 'lstm':
+            prev_c = np.zeros_like(prev_h)
+
         for t in range(1, max_length):
             embed, _ = word_embedding_forward(x, W_embed)
 
             if self.cell_type == 'rnn':
                 next_h, _ = rnn_step_forward(embed, prev_h, Wx, Wh, b)
+            elif self.cell_type == 'lstm':
+                next_h, next_c, _ = lstm_step_forward(
+                    embed, prev_h, prev_c, Wx, Wh, b)
+                prev_c = next_c
 
             prev_h = next_h
             out, _ = affine_forward(next_h, W_vocab, b_vocab)
