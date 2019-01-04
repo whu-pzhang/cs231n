@@ -34,7 +34,12 @@ def rnn_step_forward(x, prev_h, Wx, Wh, b):
     # hidden state and any values you need for the backward pass in the next_h   #
     # and cache variables respectively.                                          #
     ##############################################################################
-    pass
+    # next_h = np.tanh(prev_h @ Wh + x @ Wx + b)
+    prev_hWh = prev_h @ Wh
+    xWx = x @ Wx
+    hsum = prev_hWh + xWx + b
+    next_h = np.tanh(hsum)
+    cache = (x, prev_h, Wx, Wh, prev_hWh, xWx, hsum)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -63,7 +68,15 @@ def rnn_step_backward(dnext_h, cache):
     # HINT: For the tanh function, you can compute the local derivative in terms #
     # of the output value from tanh.                                             #
     ##############################################################################
-    pass
+    x, prev_h, Wx, Wh, prev_hWh, xWx, hsum = cache
+    dhsum = (1 - np.tanh(hsum)**2) * dnext_h
+    dprev_hWh = dhsum
+    dxWx = dhsum
+    db = np.sum(dhsum, axis=0)
+    dx = dxWx @ Wx.T
+    dWx = x.T @ dxWx
+    dWh = prev_h.T @ dprev_hWh
+    dprev_h = dprev_hWh @ Wh.T
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -106,9 +119,9 @@ def rnn_backward(dh, cache):
     Compute the backward pass for a vanilla RNN over an entire sequence of data.
 
     Inputs:
-    - dh: Upstream gradients of all hidden states, of shape (N, T, H). 
-    
-    NOTE: 'dh' contains the upstream gradients produced by the 
+    - dh: Upstream gradients of all hidden states, of shape (N, T, H).
+
+    NOTE: 'dh' contains the upstream gradients produced by the
     individual loss functions at each timestep, *not* the gradients
     being passed between timesteps (which you'll have to compute yourself
     by calling rnn_step_backward in a loop).
@@ -422,7 +435,8 @@ def temporal_softmax_loss(x, y, mask, verbose=False):
     dx_flat /= N
     dx_flat *= mask_flat[:, None]
 
-    if verbose: print('dx_flat: ', dx_flat.shape)
+    if verbose:
+        print('dx_flat: ', dx_flat.shape)
 
     dx = dx_flat.reshape(N, T, V)
 
