@@ -673,8 +673,8 @@ def max_pool_backward_naive(dout, cache):
         for j in range(Wout):
             xblock = x[:, :, i * stride:i * stride +
                        HH, j * stride:j * stride + WW]
-            max_values = np.max(xblock, axis=(2, 3))
-            mask = (xblock == max_values[:, :, np.newaxis, np.newaxis])
+            max_values = np.max(xblock, axis=(2, 3), keepdims=True)
+            mask = (xblock == max_values)
             dx[:, :, i * stride:i * stride +
                HH, j * stride:j * stride + WW] += dout[:, :, i, j][:, :, None, None] * mask
     ###########################################################################
